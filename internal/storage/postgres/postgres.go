@@ -48,3 +48,25 @@ func (s *Storage) GetTasks() ([]models.Message, error) {
 	}
 	return messages, nil
 }
+
+func (s *Storage) UpdateTask(task models.Message) error {
+	var t models.Message
+	if err := s.db.First(&t, task.ID).Error; err != nil {
+		return err
+	}
+	if task.Task != "" {
+		t.Task = task.Task
+	}
+	t.IsDone = task.IsDone
+	if err := s.db.Save(&t).Error; err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *Storage) DeleteTask(id uint) error {
+	if err := s.db.Delete(&models.Message{}, id).Error; err != nil {
+		return err
+	}
+	return nil
+}
