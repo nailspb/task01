@@ -8,16 +8,16 @@ import (
 	"task01/internal/models"
 )
 
-type Storage interface {
-	GetTasks() ([]models.Message, error)
-	AddTask(task models.Message) error
-	UpdateTask(task models.Message) error
-	DeleteTask(id uint) error
+type taskService interface {
+	GetAll() ([]models.Message, error)
+	Create(task models.Message) error
+	UpdateByID(id uint, task *models.Message) error
+	DeleteByID(id uint) error
 }
 
-func GetTaskHandler(storage Storage) http.HandlerFunc {
+func GetTaskHandler(service taskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		tasks, err := storage.GetTasks()
+		tasks, err := service.GetAll()
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -33,10 +33,11 @@ func GetTaskHandler(storage Storage) http.HandlerFunc {
 			fmt.Printf("Error on write response %v\n", err)
 			return
 		}
+
 	}
 }
 
-func PostTaskHandler(storage Storage) http.HandlerFunc {
+func PostTaskHandler(service taskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		dec := json.NewDecoder(r.Body)
 		var task models.Message
@@ -45,38 +46,44 @@ func PostTaskHandler(storage Storage) http.HandlerFunc {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if err = storage.AddTask(task); err != nil {
+		if err = service.Create(task); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
 		w.WriteHeader(http.StatusOK)
 	}
 }
 
-func PatchTaskHandler(storage Storage) http.HandlerFunc {
+func PatchTaskHandler(service taskService) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		dec := json.NewDecoder(r.Body)
-		var task models.Message
-		err := dec.Decode(&task)
-		if err != nil || task.ID == 0 {
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil || id < 1 {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if err = storage.UpdateTask(task); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-	}
-}
-
-func DeleteTaskHandler(storage Storage) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.URL.Query().Get("id"))
+		dec := json.NewDecoder(r.Body)
+		var task models.Message
+		err = dec.Decode(&task)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if err = storage.DeleteTask(uint(id)); err != nil {
+		if err = service.UpdateByID(uint(id), &task); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func DeleteTaskHandler(service taskService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(r.PathValue("id"))
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		if err = service.DeleteByID(uint(id)); err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
