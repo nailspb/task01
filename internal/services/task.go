@@ -56,3 +56,11 @@ func (s *taskService) DeleteByID(id uint) error {
 	}
 	return nil
 }
+
+func (s *taskService) Get(id uint) (*models.Task, error) {
+	t, err := s.repo.GetTasksById(id)
+	if err != nil {
+		return nil, fmt.Errorf("[TaskService] repository error on delete tasks by id: %w", err)
+	}
+	return t, nil
+}

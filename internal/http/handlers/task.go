@@ -1,125 +1,100 @@
 package handlers
 
 import (
-	"encoding/json"
-	"io"
+	"context"
 	"log/slog"
-	"net/http"
-	"strconv"
-	"strings"
 	"task01/internal/models"
+	"task01/internal/web/tasks"
 )
 
 type taskService interface {
 	GetAll() ([]models.Task, error)
+	Get(id uint) (*models.Task, error)
 	Create(task models.Task) error
 	UpdateByID(id uint, task *models.Task) error
 	DeleteByID(id uint) error
 }
 
-func GetTaskHandler(service taskService, log *slog.Logger) http.HandlerFunc {
-	log = log.With(slog.String("source", "GetTaskHandler"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		tasks, err := service.GetAll()
-		if err != nil {
-			log.Error("service error", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		serialized, err := json.Marshal(tasks)
-		if err != nil {
-			log.Error("error on stringify data to json", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
-		_, err = w.Write(serialized)
-		if err != nil {
-			log.Error("error on write response", slog.String("error", err.Error()))
-			return
-		}
+type tasksHandlers struct {
+	service taskService
+	log     *slog.Logger
+}
 
+//goland:noinspection GoExportedFuncWithUnexportedType
+func NewTasksHandler(service taskService, log *slog.Logger) *tasksHandlers {
+	log = log.With(slog.String("handler", "task"))
+	return &tasksHandlers{
+		service, log,
 	}
 }
 
-func PostTaskHandler(service taskService, log *slog.Logger) http.HandlerFunc {
-	log = log.With(slog.String("source", "PostTaskHandler"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Error("error on read body", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		defer r.Body.Close()
-		var task models.Task
-		err = json.Unmarshal(body, &task)
-		if err != nil {
-			log.Warn("bad request from user",
-				slog.String("body", string(body)),
-				slog.String("error", err.Error()),
-			)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if err = service.Create(task); err != nil {
-			log.Warn("the service was unable to create task record", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
+func (t *tasksHandlers) GetTasks(_ context.Context, _ tasks.GetTasksRequestObject) (tasks.GetTasksResponseObject, error) {
+	logger := t.log.With(slog.String("method", "GET"))
+	allTasks, err := t.service.GetAll()
+	if err != nil {
+		logger.Error("service error", slog.String("error", err.Error()))
+		return nil, err
 	}
+	response := tasks.GetTasks200JSONResponse{}
+	// Заполняем слайс response всеми задачами из БД
+	for _, tsk := range allTasks {
+		task := tasks.Task{
+			Id:     &tsk.ID,
+			Task:   &tsk.Task,
+			IsDone: &tsk.IsDone,
+		}
+		response = append(response, task)
+	}
+	return response, nil
 }
 
-func PatchTaskHandler(service taskService, log *slog.Logger) http.HandlerFunc {
-	log = log.With(slog.String("source", "PatchTaskHandler"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.PathValue("id"))
-		if err != nil || id < 1 {
-			log.Warn("bad id parameter", slog.String("id", r.PathValue("id")))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		body, err := io.ReadAll(r.Body)
-		if err != nil {
-			log.Error("error on read body", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		defer r.Body.Close()
-		var task models.Task
-		err = json.Unmarshal(body, &task)
-		if err != nil {
-			log.Warn("bad request from user",
-				slog.String("body", strings.Replace(string(body), "\r\n", "", -1)),
-				slog.String("error", err.Error()),
-			)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if err = service.UpdateByID(uint(id), &task); err != nil {
-			log.Warn("the service was unable to update the data", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
+func (t *tasksHandlers) PostTasks(_ context.Context, r tasks.PostTasksRequestObject) (tasks.PostTasksResponseObject, error) {
+	logger := t.log.With(slog.String("method", "POST"))
+	if err := t.service.Create(models.Task{
+		Task:   *r.Body.Task,
+		IsDone: *r.Body.IsDone,
+	}); err != nil {
+		logger.Warn("the service was unable to create task record", slog.String("error", err.Error()))
+		return nil, err
 	}
+	return tasks.PostTasks201Response{}, nil
+
 }
 
-func DeleteTaskHandler(service taskService, log *slog.Logger) http.HandlerFunc {
-	log = log.With(slog.String("source", "PatchTaskHandler"))
-	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.PathValue("id"))
-		if err != nil {
-			log.Warn("bad id parameter", slog.String("id", r.PathValue("id")))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		if err = service.DeleteByID(uint(id)); err != nil {
-			log.Warn("the service was unable to delete task", slog.String("error", err.Error()))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		w.WriteHeader(http.StatusOK)
+func (t *tasksHandlers) PatchTasksId(_ context.Context, r tasks.PatchTasksIdRequestObject) (tasks.PatchTasksIdResponseObject, error) {
+	logger := t.log.With(slog.String("method", "PATCH"))
+	if err := t.service.UpdateByID(r.Id, &models.Task{
+		Task:   *r.Body.Task,
+		IsDone: *r.Body.IsDone,
+	}); err != nil {
+		logger.Warn("the service was unable to update the data", slog.String("error", err.Error()))
+		return nil, err
 	}
+	return tasks.PatchTasksId200Response{}, nil
+}
+
+func (t *tasksHandlers) DeleteTasksId(_ context.Context, r tasks.DeleteTasksIdRequestObject) (tasks.DeleteTasksIdResponseObject, error) {
+	logger := t.log.With(slog.String("method", "DELETE"))
+	if err := t.service.DeleteByID(r.Id); err != nil {
+		logger.Warn("the service was unable to delete task", slog.String("error", err.Error()))
+		return nil, err
+	}
+	return tasks.DeleteTasksId200Response{}, nil
+}
+
+func (t *tasksHandlers) GetTasksId(_ context.Context, r tasks.GetTasksIdRequestObject) (tasks.GetTasksIdResponseObject, error) {
+	logger := t.log.With(slog.String("method", "GET"))
+	task, err := t.service.Get(r.Id)
+	if err != nil {
+		logger.Warn("the service was unable to get task by id", slog.String("error", err.Error()))
+		return nil, err
+	}
+	if task != nil {
+		return tasks.GetTasksId200JSONResponse{
+			Id:     &task.ID,
+			IsDone: &task.IsDone,
+			Task:   &task.Task,
+		}, nil
+	}
+	return tasks.GetTasksId404Response{}, nil
 }

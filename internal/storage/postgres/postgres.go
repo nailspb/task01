@@ -75,6 +75,9 @@ func (s *storage) DeleteTaskByID(id uint) error {
 func (s *storage) GetTasksById(id uint) (*models.Task, error) {
 	var t models.Task
 	if err := s.db.First(&t, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("[Storage/postgres] error when get task: %w", err)
 	}
 	return &t, nil
