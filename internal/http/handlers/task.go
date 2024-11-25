@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
 	"task01/internal/models"
 	"task01/internal/web/tasks"
 )
@@ -10,90 +9,104 @@ import (
 type taskService interface {
 	GetAll() ([]models.Task, error)
 	Get(id uint) (*models.Task, error)
-	Create(task models.Task) error
-	UpdateByID(id uint, task *models.Task) error
-	DeleteByID(id uint) error
+	Create(task models.Task) (*models.Task, error)
+	UpdateByID(id uint, task *models.Task) (bool, error)
+	DeleteByID(id uint) (bool, error)
 }
 
 type tasksHandlers struct {
 	service taskService
-	log     *slog.Logger
 }
 
 //goland:noinspection GoExportedFuncWithUnexportedType
-func NewTasksHandler(service taskService, log *slog.Logger) *tasksHandlers {
-	log = log.With(slog.String("handler", "task"))
+func NewTasksHandler(service taskService) *tasksHandlers {
 	return &tasksHandlers{
-		service, log,
+		service,
 	}
 }
 
 func (t *tasksHandlers) GetTasks(_ context.Context, _ tasks.GetTasksRequestObject) (tasks.GetTasksResponseObject, error) {
-	logger := t.log.With(slog.String("method", "GET"))
 	allTasks, err := t.service.GetAll()
 	if err != nil {
-		logger.Error("service error", slog.String("error", err.Error()))
 		return nil, err
 	}
-	response := tasks.GetTasks200JSONResponse{}
+	response := make(tasks.GetTasks200JSONResponse, len(allTasks))
 	// Заполняем слайс response всеми задачами из БД
-	for _, tsk := range allTasks {
-		task := tasks.Task{
-			Id:     &tsk.ID,
-			Task:   &tsk.Task,
-			IsDone: &tsk.IsDone,
+	for i, task := range allTasks {
+		response[i] = tasks.Task{
+			Created: &task.CreatedAt,
+			Id:      &task.ID,
+			IsDone:  &task.IsDone,
+			Task:    &task.Task,
+			Updated: &task.UpdatedAt,
 		}
-		response = append(response, task)
 	}
 	return response, nil
 }
 
 func (t *tasksHandlers) PostTasks(_ context.Context, r tasks.PostTasksRequestObject) (tasks.PostTasksResponseObject, error) {
-	logger := t.log.With(slog.String("method", "POST"))
-	if err := t.service.Create(models.Task{
-		Task:   *r.Body.Task,
-		IsDone: *r.Body.IsDone,
-	}); err != nil {
-		logger.Warn("the service was unable to create task record", slog.String("error", err.Error()))
+	task := models.Task{}
+	if r.Body.Task != nil {
+		task.Task = *r.Body.Task
+	}
+	if r.Body.IsDone != nil {
+		task.IsDone = *r.Body.IsDone
+	}
+	newTask, err := t.service.Create(task)
+	if err != nil {
 		return nil, err
 	}
-	return tasks.PostTasks201Response{}, nil
+	return tasks.PostTasks201JSONResponse{
+		Created: &newTask.CreatedAt,
+		Id:      &newTask.ID,
+		IsDone:  &newTask.IsDone,
+		Task:    &newTask.Task,
+		Updated: &newTask.UpdatedAt,
+	}, nil
 
 }
 
 func (t *tasksHandlers) PatchTasksId(_ context.Context, r tasks.PatchTasksIdRequestObject) (tasks.PatchTasksIdResponseObject, error) {
-	logger := t.log.With(slog.String("method", "PATCH"))
-	if err := t.service.UpdateByID(r.Id, &models.Task{
-		Task:   *r.Body.Task,
-		IsDone: *r.Body.IsDone,
-	}); err != nil {
-		logger.Warn("the service was unable to update the data", slog.String("error", err.Error()))
+	task := models.Task{}
+	if r.Body.Task != nil {
+		task.Task = *r.Body.Task
+	}
+	if r.Body.IsDone != nil {
+		task.IsDone = *r.Body.IsDone
+	}
+	done, err := t.service.UpdateByID(r.Id, &task)
+	if err != nil {
 		return nil, err
 	}
-	return tasks.PatchTasksId200Response{}, nil
+	if done {
+		return tasks.PatchTasksId200Response{}, nil
+	}
+	return tasks.PatchTasksId404Response{}, nil
 }
 
 func (t *tasksHandlers) DeleteTasksId(_ context.Context, r tasks.DeleteTasksIdRequestObject) (tasks.DeleteTasksIdResponseObject, error) {
-	logger := t.log.With(slog.String("method", "DELETE"))
-	if err := t.service.DeleteByID(r.Id); err != nil {
-		logger.Warn("the service was unable to delete task", slog.String("error", err.Error()))
+	done, err := t.service.DeleteByID(r.Id)
+	if err != nil {
 		return nil, err
 	}
-	return tasks.DeleteTasksId200Response{}, nil
+	if done {
+		return tasks.DeleteTasksId200Response{}, nil
+	}
+	return tasks.DeleteTasksId404Response{}, nil
 }
 
 func (t *tasksHandlers) GetTasksId(_ context.Context, r tasks.GetTasksIdRequestObject) (tasks.GetTasksIdResponseObject, error) {
-	logger := t.log.With(slog.String("method", "GET"))
 	task, err := t.service.Get(r.Id)
 	if err != nil {
-		logger.Warn("the service was unable to get task by id", slog.String("error", err.Error()))
 		return nil, err
 	}
 	if task != nil {
 		return tasks.GetTasksId200JSONResponse{
-			Id:     &task.ID,
-			IsDone: &task.IsDone,
-			Task:   &task.Task,
+			Created: &task.CreatedAt,
+			Id:      &task.ID,
+			IsDone:  &task.IsDone,
+			Task:    &task.Task,
+			Updated: &task.UpdatedAt,
 		}, nil
 	}
 	return tasks.GetTasksId404Response{}, nil

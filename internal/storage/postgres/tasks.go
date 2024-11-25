@@ -2,7 +2,6 @@ package postgres
 
 import (
 	"errors"
-	"fmt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"log"
@@ -30,46 +29,43 @@ func New() *storage {
 	}
 }
 
-func (s *storage) CreateTask(task models.Task) error {
-	res := s.db.Create(&models.Task{
-		Task:   task.Task,
-		IsDone: task.IsDone,
-	})
+func (s *storage) CreateTask(task models.Task) (*models.Task, error) {
+	res := s.db.Create(task)
 	if res.Error != nil {
-		return errors.Join(errors.New("error executing a database request to add a task"), res.Error)
+		return nil, res.Error
 	}
-	return nil
+	return &task, nil
 }
 
 func (s *storage) GetAllTasks() ([]models.Task, error) {
 	messages := make([]models.Task, 0)
 	res := s.db.Find(&messages)
 	if res.Error != nil {
-		return nil, fmt.Errorf("[Storage/postgres] error when getting all the tasks: %w", res.Error)
+		return nil, res.Error
 	}
 	return messages, nil
 }
 
-func (s *storage) UpdateTaskById(id uint, task *models.Task) error {
-	tx := s.db.Model(&models.Task{}).Where("id = ?", id).Updates(models.Task{Task: task.Task, IsDone: task.IsDone})
+func (s *storage) UpdateTaskById(id uint, task *models.Task) (bool, error) {
+	tx := s.db.Model(&models.Task{}).Where("id = ?", id).Updates(task)
 	if tx.Error != nil {
-		return fmt.Errorf("[Storage/postgres] error when updating task: %w", tx.Error)
+		return false, tx.Error
 	}
 	if tx.RowsAffected == 0 {
-		return errors.New("[Storage/postgres] the task being updated was not found")
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
-func (s *storage) DeleteTaskByID(id uint) error {
+func (s *storage) DeleteTaskByID(id uint) (bool, error) {
 	tx := s.db.Delete(&models.Task{}, id)
 	if tx.Error != nil {
-		return fmt.Errorf("[Storage/postgres] error when delete task: %w", tx.Error)
+		return false, tx.Error
 	}
 	if tx.RowsAffected == 0 {
-		return errors.New("[Storage/postgres] task not found")
+		return false, nil
 	}
-	return nil
+	return true, nil
 }
 
 func (s *storage) GetTasksById(id uint) (*models.Task, error) {
@@ -78,7 +74,7 @@ func (s *storage) GetTasksById(id uint) (*models.Task, error) {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("[Storage/postgres] error when get task: %w", err)
+		return nil, err
 	}
 	return &t, nil
 }

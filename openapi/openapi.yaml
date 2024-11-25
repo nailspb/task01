@@ -2,6 +2,11 @@ openapi: 3.0.0
 info:
   title: API
   version: 1.0.0
+tags:
+  - name: tasks
+    description: Simple TODO service
+  - name: users
+    description: Simple users management service
 paths:
   /tasks:
     get:
@@ -27,10 +32,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskToAdd'
+              $ref: '#/components/schemas/TaskAdd'
       responses:
         '201':
           description: Task added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Task'
   /tasks/{id}:
     get:
       summary: Get task by id
@@ -71,10 +80,12 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TaskToAdd'
+              $ref: '#/components/schemas/TaskAdd'
       responses:
         '200':
           description: The task updated
+        '404':
+          description: Task not found
     delete:
       summary: Delete task by id
       tags:
@@ -90,8 +101,104 @@ paths:
       responses:
         '200':
           description: The task is deleted
-        '400':
-          description: Unable to delete task
+        '404':
+          description: Task not found
+  /users:
+    get:
+      summary: Get all users
+      tags:
+        - users
+      responses:
+        '200':
+          description: a list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      summary: Add new user
+      tags:
+        - users
+      requestBody:
+        description: user to add
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserAdd'
+      responses:
+        '201':
+          description: user added to storage
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users/{id}:
+    get:
+      summary: Get user by id
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          description: user id
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: a user model
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+    patch:
+      summary: Update user by id
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          description: user id
+          required: true
+          schema:
+            type: integer
+            format: uint
+      requestBody:
+        description: The user model
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: The user updated
+        '404':
+          description: User not found
+    delete:
+      summary: Delete user by id
+      tags:
+        - users
+      parameters:
+        - name: id
+          in: path
+          description: user id
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: The user is deleted
+        '404':
+          description: User not found
+
 components:
   schemas:
     Task:
@@ -104,10 +211,48 @@ components:
           type: string
         is_done:
           type: boolean
-    TaskToAdd:
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time
+    TaskAdd:
       type: object
       properties:
         task:
           type: string
         is_done:
           type: boolean
+
+    UserAdd:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    UserUpdate:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: uint
+        email:
+          type: string
+        created:
+          type: string
+          format: date-time
+        updated:
+          type: string
+          format: date-time

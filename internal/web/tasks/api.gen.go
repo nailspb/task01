@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/oapi-codegen/runtime"
@@ -16,22 +17,24 @@ import (
 
 // Task defines model for Task.
 type Task struct {
-	Id     *uint   `json:"id,omitempty"`
-	IsDone *bool   `json:"is_done,omitempty"`
-	Task   *string `json:"task,omitempty"`
+	Created *time.Time `json:"created,omitempty"`
+	Id      *uint      `json:"id,omitempty"`
+	IsDone  *bool      `json:"is_done,omitempty"`
+	Task    *string    `json:"task,omitempty"`
+	Updated *time.Time `json:"updated,omitempty"`
 }
 
-// TaskToAdd defines model for TaskToAdd.
-type TaskToAdd struct {
+// TaskAdd defines model for TaskAdd.
+type TaskAdd struct {
 	IsDone *bool   `json:"is_done,omitempty"`
 	Task   *string `json:"task,omitempty"`
 }
 
 // PostTasksJSONRequestBody defines body for PostTasks for application/json ContentType.
-type PostTasksJSONRequestBody = TaskToAdd
+type PostTasksJSONRequestBody = TaskAdd
 
 // PatchTasksIdJSONRequestBody defines body for PatchTasksId for application/json ContentType.
-type PatchTasksIdJSONRequestBody = TaskToAdd
+type PatchTasksIdJSONRequestBody = TaskAdd
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -183,12 +186,13 @@ type PostTasksResponseObject interface {
 	VisitPostTasksResponse(w http.ResponseWriter) error
 }
 
-type PostTasks201Response struct {
-}
+type PostTasks201JSONResponse Task
 
-func (response PostTasks201Response) VisitPostTasksResponse(w http.ResponseWriter) error {
+func (response PostTasks201JSONResponse) VisitPostTasksResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(201)
-	return nil
+
+	return json.NewEncoder(w).Encode(response)
 }
 
 type DeleteTasksIdRequestObject struct {
@@ -207,11 +211,11 @@ func (response DeleteTasksId200Response) VisitDeleteTasksIdResponse(w http.Respo
 	return nil
 }
 
-type DeleteTasksId400Response struct {
+type DeleteTasksId404Response struct {
 }
 
-func (response DeleteTasksId400Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
-	w.WriteHeader(400)
+func (response DeleteTasksId404Response) VisitDeleteTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
 	return nil
 }
 
@@ -254,6 +258,14 @@ type PatchTasksId200Response struct {
 
 func (response PatchTasksId200Response) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
 	w.WriteHeader(200)
+	return nil
+}
+
+type PatchTasksId404Response struct {
+}
+
+func (response PatchTasksId404Response) VisitPatchTasksIdResponse(w http.ResponseWriter) error {
+	w.WriteHeader(404)
 	return nil
 }
 

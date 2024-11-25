@@ -8,7 +8,6 @@ import (
 	"io"
 	"log/slog"
 	"sync"
-	"task01/pkg/prettylogger/colors"
 )
 
 type JsonHandler struct {
@@ -50,7 +49,7 @@ func (h *JsonHandler) computeAttr(ctx context.Context, r slog.Record) (map[strin
 }
 
 func (h *JsonHandler) Handle(ctx context.Context, r slog.Record) error {
-	level := r.Level.String()
+	/*level := r.Level.String()
 
 	switch r.Level {
 	case slog.LevelDebug:
@@ -61,7 +60,7 @@ func (h *JsonHandler) Handle(ctx context.Context, r slog.Record) error {
 		level = colors.Yellow(level)
 	case slog.LevelError:
 		level = colors.Red(level)
-	}
+	}*/
 
 	attrs, err := h.computeAttr(ctx, r)
 	if err != nil {
