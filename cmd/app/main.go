@@ -23,7 +23,19 @@ func main() {
 	e := echo.New()
 	e.Use(
 		middleware.Logger(),
-		middleware.Recover(),
+		/*middleware.RecoverWithConfig(middleware.RecoverConfig{
+			Skipper:           middleware.DefaultSkipper,
+			StackSize:         4 << 10, // 4 KB
+			DisableStackAll:   false,
+			DisablePrintStack: false,
+			LogLevel:          5,
+			LogErrorFunc: func(c echo.Context, err error, stack []byte) error {
+				log.Error(err.Error())
+				log.Error(string(stack))
+				return nil
+			},
+			DisableErrorHandler: false,
+		}),*/
 	)
 	e.GET("/api/*", echoSwagger.EchoWrapHandler(func(config *echoSwagger.Config) {
 		config.URLs = []string{"/api/swagger.yaml"}

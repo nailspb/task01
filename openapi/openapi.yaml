@@ -40,6 +40,29 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Task'
+
+  /userTasks/{id}:
+    get:
+      summary: Get all tasks for user
+      tags:
+        - tasks
+      parameters:
+        - name: id
+          in: path
+          description: User id
+          required: true
+          schema:
+            type: integer
+            format: uint
+      responses:
+        '200':
+          description: A list of tasks for user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Task'
   /tasks/{id}:
     get:
       summary: Get task by id
@@ -211,6 +234,9 @@ components:
           type: string
         is_done:
           type: boolean
+        user_id:
+          type: integer
+          format: uint
         created:
           type: string
           format: date-time
@@ -219,9 +245,14 @@ components:
           format: date-time
     TaskAdd:
       type: object
+      required:
+        - user_id
       properties:
         task:
           type: string
+        user_id:
+          type: integer
+          format: uint
         is_done:
           type: boolean
 

@@ -30,7 +30,7 @@ func New() *storage {
 }
 
 func (s *storage) CreateTask(task models.Task) (*models.Task, error) {
-	res := s.db.Create(task)
+	res := s.db.Create(&task)
 	if res.Error != nil {
 		return nil, res.Error
 	}
@@ -77,4 +77,13 @@ func (s *storage) GetTasksById(id uint) (*models.Task, error) {
 		return nil, err
 	}
 	return &t, nil
+}
+
+func (s *storage) GetAllByUser(id uint) ([]models.Task, error) {
+	messages := make([]models.Task, 0)
+	res := s.db.Where("user_id = ?", id).Find(&messages)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	return messages, nil
 }

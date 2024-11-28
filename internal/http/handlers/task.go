@@ -8,6 +8,7 @@ import (
 
 type taskService interface {
 	GetAll() ([]models.Task, error)
+	GetAllByUser(id uint) ([]models.Task, error)
 	Get(id uint) (*models.Task, error)
 	Create(task models.Task) (*models.Task, error)
 	UpdateByID(id uint, task *models.Task) (bool, error)
@@ -25,13 +26,12 @@ func NewTasksHandler(service taskService) *tasksHandlers {
 	}
 }
 
-func (t *tasksHandlers) GetTasks(_ context.Context, _ tasks.GetTasksRequestObject) (tasks.GetTasksResponseObject, error) {
-	allTasks, err := t.service.GetAll()
+func (t *tasksHandlers) GetUserTasksId(_ context.Context, request tasks.GetUserTasksIdRequestObject) (tasks.GetUserTasksIdResponseObject, error) {
+	allTasks, err := t.service.GetAllByUser(request.Id)
 	if err != nil {
 		return nil, err
 	}
-	response := make(tasks.GetTasks200JSONResponse, len(allTasks))
-	// Заполняем слайс response всеми задачами из БД
+	response := make(tasks.GetUserTasksId200JSONResponse, len(allTasks))
 	for i, task := range allTasks {
 		response[i] = tasks.Task{
 			Created: &task.CreatedAt,
@@ -39,6 +39,26 @@ func (t *tasksHandlers) GetTasks(_ context.Context, _ tasks.GetTasksRequestObjec
 			IsDone:  &task.IsDone,
 			Task:    &task.Task,
 			Updated: &task.UpdatedAt,
+			UserId:  &task.UserId,
+		}
+	}
+	return response, nil
+}
+
+func (t *tasksHandlers) GetTasks(_ context.Context, _ tasks.GetTasksRequestObject) (tasks.GetTasksResponseObject, error) {
+	allTasks, err := t.service.GetAll()
+	if err != nil {
+		return nil, err
+	}
+	response := make(tasks.GetTasks200JSONResponse, len(allTasks))
+	for i, task := range allTasks {
+		response[i] = tasks.Task{
+			Created: &task.CreatedAt,
+			Id:      &task.ID,
+			IsDone:  &task.IsDone,
+			Task:    &task.Task,
+			Updated: &task.UpdatedAt,
+			UserId:  &task.UserId,
 		}
 	}
 	return response, nil
@@ -52,6 +72,7 @@ func (t *tasksHandlers) PostTasks(_ context.Context, r tasks.PostTasksRequestObj
 	if r.Body.IsDone != nil {
 		task.IsDone = *r.Body.IsDone
 	}
+	task.UserId = r.Body.UserId
 	newTask, err := t.service.Create(task)
 	if err != nil {
 		return nil, err
@@ -62,6 +83,7 @@ func (t *tasksHandlers) PostTasks(_ context.Context, r tasks.PostTasksRequestObj
 		IsDone:  &newTask.IsDone,
 		Task:    &newTask.Task,
 		Updated: &newTask.UpdatedAt,
+		UserId:  &newTask.UserId,
 	}, nil
 
 }
@@ -74,6 +96,7 @@ func (t *tasksHandlers) PatchTasksId(_ context.Context, r tasks.PatchTasksIdRequ
 	if r.Body.IsDone != nil {
 		task.IsDone = *r.Body.IsDone
 	}
+	task.UserId = r.Body.UserId
 	done, err := t.service.UpdateByID(r.Id, &task)
 	if err != nil {
 		return nil, err
@@ -107,6 +130,7 @@ func (t *tasksHandlers) GetTasksId(_ context.Context, r tasks.GetTasksIdRequestO
 			IsDone:  &task.IsDone,
 			Task:    &task.Task,
 			Updated: &task.UpdatedAt,
+			UserId:  &task.UserId,
 		}, nil
 	}
 	return tasks.GetTasksId404Response{}, nil

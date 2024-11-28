@@ -7,6 +7,7 @@ import (
 
 type taskRepository interface {
 	GetAllTasks() ([]models.Task, error)
+	GetAllByUser(id uint) ([]models.Task, error)
 	GetTasksById(id uint) (*models.Task, error)
 	CreateTask(task models.Task) (*models.Task, error)
 	UpdateTaskById(id uint, task *models.Task) (bool, error)
@@ -42,4 +43,8 @@ func (s *taskService) DeleteByID(id uint) (bool, error) {
 
 func (s *taskService) Get(id uint) (*models.Task, error) {
 	return s.repo.GetTasksById(id)
+}
+
+func (s *taskService) GetAllByUser(id uint) ([]models.Task, error) {
+	return s.repo.GetAllByUser(id)
 }
